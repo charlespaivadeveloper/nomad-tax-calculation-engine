@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "type": "SYNTHETIC",
+    "legalCompliance": false,
+    "note": "Illustrative arithmetic only"
+  },
+  "request": {
+    "operationId": "OP-2026-00001",
+    "operationDate": "2026-11-23",
+    "currency": "BRL",
+    "classification": {
+      "taxCode": "DEMO_STANDARD"
+    },
+    "amount": {
+      "taxableBase": "1000.00"
+    },
+    "simulationContext": "SYNTHETIC"
+  },
+  "syntheticRule": {
+    "ruleVersionId": "DEMO-2026-V1",
+    "cbsRate": "0.009",
+    "ibsRate": "0.001",
+    "roundingMode": "HALF_UP"
+  },
+  "expected": {
+    "cbs": "9.00",
+    "ibs": "1.00",
+    "totalTax": "10.00"
+  }
+}

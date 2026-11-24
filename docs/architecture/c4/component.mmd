@@ -1,0 +1,9 @@
+flowchart LR
+  C[HTTP Controller] --> I[Input Boundary]
+  I --> U[CalculateTaxInteractor]
+  U --> D[Domain Entities / Calculator]
+  U --> G[Gateway Interfaces]
+  G -. implemented by .-> A[Persistence Adapters]
+  U --> O[Output Boundary]
+  O -. implemented by .-> P[Presenter]
+  A --> DB[(PostgreSQL)]

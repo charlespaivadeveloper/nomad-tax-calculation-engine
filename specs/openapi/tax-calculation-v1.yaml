@@ -1,0 +1,447 @@
+openapi: 3.0.3
+info:
+  title: Nomad Synthetic Tax Calculation API
+  version: 1.0.0
+  description: >
+    Deterministic synthetic tax calculation engine — MVP.
+    All rates and results are SYNTHETIC; not legally certified.
+    Aligns with SPEC-TAX-004 (last updated 2026-11-23).
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/tax-calculations:
+    post:
+      operationId: calculateTax
+      summary: Submit a new synthetic tax calculation
+      description: >
+        Idempotent via Idempotency-Key header. Returns 201 on first success,
+        200 on idempotent replay of a committed result.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationRequest'
+            example:
+              operationId: "OP-2026-001"
+              operationDate: "2026-01-15"
+              currency: "BRL"
+              classificationCode: "GOODS_GENERAL"
+              taxableBase: "1000.00"
+              simulationContext: "SYNTHETIC"
+      responses:
+        '201':
+          description: New calculation created and persisted
+          headers:
+            Location:
+              description: URL of the created calculation resource
+              schema: {type: string, format: uri}
+            X-Correlation-ID:
+              $ref: '#/components/headers/XCorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+        '200':
+          description: Idempotent replay — previously committed result returned unchanged
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/XCorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/tax-calculations/{id}:
+    get:
+      operationId: getCalculation
+      summary: Retrieve a persisted calculation by ID
+      parameters:
+        - $ref: '#/components/parameters/CalculationId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Calculation found
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/XCorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/tax-calculations/{id}/replays:
+    post:
+      operationId: replayCalculation
+      summary: Re-execute a historical calculation and compare to stored result
+      description: >
+        Uses the stored canonical input snapshot to re-run the full calculation
+        pipeline. Returns whether the new result matches the original and lists
+        any diverging fields.
+      parameters:
+        - $ref: '#/components/parameters/CalculationId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Replay completed; matchesOriginal indicates agreement
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/XCorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CalculationId:
+      name: id
+      in: path
+      required: true
+      description: UUID of the calculation resource
+      schema:
+        type: string
+        format: uuid
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-supplied deduplication key; scoped per tenant
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+    CorrelationId:
+      name: X-Correlation-ID
+      in: header
+      required: false
+      description: Tracing identifier; echoed in response; generated by server if absent
+      schema:
+        type: string
+        format: uuid
+
+  headers:
+    XCorrelationId:
+      description: Tracing identifier echoed from request or server-generated
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Validation error — missing or malformed field or header
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://errors.nomad-tax.example/VALIDATION_ERROR"
+            title: "Validation Error"
+            status: 400
+            detail: "taxableBase must be positive"
+            code: "VALIDATION_ERROR"
+            correlationId: "uuid-string"
+
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Forbidden:
+      description: Valid token but tenant identity not resolvable
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    NotFound:
+      description: Calculation not found (or cross-tenant — non-disclosing)
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Conflict:
+      description: Idempotency key reused with different body, or rule ambiguity
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    UnprocessableEntity:
+      description: No published rule found for the classification on the given date
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    ServiceUnavailable:
+      description: Persistence unavailable or in-progress concurrent duplicate
+      headers:
+        X-Correlation-ID:
+          $ref: '#/components/headers/XCorrelationId'
+        Retry-After:
+          description: Seconds to wait before retry (present for in-progress collision only)
+          schema:
+            type: integer
+            example: 2
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    CalculationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - operationId
+        - operationDate
+        - currency
+        - classificationCode
+        - taxableBase
+        - simulationContext
+      properties:
+        operationId:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Client-supplied business identifier for this operation
+        operationDate:
+          type: string
+          format: date
+          description: "ISO-8601 date (yyyy-MM-dd); must not be in the future"
+        currency:
+          type: string
+          enum: [BRL]
+        classificationCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Z0-9_]+$'
+          description: Tax classification code; uppercase alphanumeric and underscore only
+        taxableBase:
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]{1,4})?$'
+          description: >
+            Taxable base amount as a decimal string; must be > 0.00; maximum 4 decimal places.
+            Use a string to avoid IEEE 754 precision loss.
+        simulationContext:
+          type: string
+          enum: [SYNTHETIC]
+          description: Must be SYNTHETIC; real fiscal calculations are out of scope
+
+    TaxComponent:
+      type: object
+      additionalProperties: false
+      required: [taxType, taxableBase, rate, amount]
+      properties:
+        taxType:
+          type: string
+          enum: [CBS, IBS]
+        taxableBase:
+          type: string
+          description: Decimal string, exactly 4 decimal places (toPlainString)
+          example: "1000.0000"
+        rate:
+          type: string
+          description: Decimal string, exactly 9 decimal places (toPlainString)
+          example: "0.088000000"
+        amount:
+          type: string
+          description: Computed tax amount, decimal string, exactly 2 decimal places
+          example: "88.00"
+
+    CalculationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - calculationId
+        - status
+        - currency
+        - components
+        - totalTax
+        - ruleVersionId
+        - engineVersion
+        - simulationContext
+        - inputCanonicalHash
+      properties:
+        calculationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [CALCULATED]
+        currency:
+          type: string
+          enum: [BRL]
+        components:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/TaxComponent'
+          description: Ordered CBS before IBS; never empty
+        totalTax:
+          type: string
+          description: Sum of all component amounts; decimal string, scale 2
+          example: "265.00"
+        ruleVersionId:
+          type: string
+          format: uuid
+          description: UUID of the TaxRuleSnapshot used (references the CBS rule; see OQ-RC-003)
+        engineVersion:
+          type: string
+          description: Semantic version string of the calculation engine
+          example: "1.0.0"
+        simulationContext:
+          type: string
+          enum: [SYNTHETIC]
+        inputCanonicalHash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: SHA-256 hex of the canonical input (SPEC-TAX-001 §4); 64 lowercase hex chars
+
+    ReplayDivergence:
+      type: object
+      additionalProperties: false
+      required: [field, original, replay]
+      properties:
+        field:
+          type: string
+          description: JSON path of the diverging field (e.g., "components[0].amount")
+        original:
+          type: string
+          description: Value from the stored original result
+        replay:
+          type: string
+          description: Value produced by the replay run
+
+    ReplayResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - calculationId
+        - matchesOriginal
+        - originalEngineVersion
+        - replayEngineVersion
+        - divergences
+      properties:
+        calculationId:
+          type: string
+          format: uuid
+          description: Echoes the path {id}
+        matchesOriginal:
+          type: boolean
+          description: true iff replay produces identical components and totalTax
+        originalEngineVersion:
+          type: string
+          description: Engine version recorded with the original calculation
+        replayEngineVersion:
+          type: string
+          description: Engine version used for this replay
+        divergences:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplayDivergence'
+          description: Empty when matchesOriginal is true; non-empty when false
+
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details
+      required: [type, title, status, detail, code, correlationId]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI identifying the error class
+          example: "https://errors.nomad-tax.example/RULE_NOT_FOUND"
+        title:
+          type: string
+          description: Short human-readable summary; stable per code value
+          example: "Rule Not Found"
+        status:
+          type: integer
+          description: HTTP status code (mirrors the HTTP response status)
+          example: 422
+        detail:
+          type: string
+          description: Context-specific message; no PII, no stack traces, no internal hostnames
+        code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - VALIDATION_ERROR
+            - UNAUTHENTICATED
+            - TENANT_NOT_FOUND
+            - CALCULATION_NOT_FOUND
+            - IDEMPOTENCY_CONFLICT
+            - RULE_AMBIGUOUS
+            - RULE_NOT_FOUND
+            - DEPENDENCY_UNAVAILABLE
+        correlationId:
+          type: string
+          format: uuid
+          description: Echoes X-Correlation-ID from request or server-generated UUID

@@ -1,0 +1,5 @@
+flowchart LR
+  ERP[ERP / client] --> TAX[Tax Calculation Engine]
+  Analyst[Fiscal analyst] --> TAX
+  TAX -. future integration .-> RULES[Tax Rule Management]
+  TAX -. future integration .-> AUDIT[Fiscal Audit Trail]

@@ -1,0 +1,17 @@
+project: nomad-tax-calculation-engine
+version: 0.2.0
+reference_architecture: uncle-bob-clean-architecture-2012
+approvals:
+  source: user_conversation_2026-11-23
+  note: User explicitly approved all planned stages and authorized eventual Claude Code implementation; technical evidence is not yet verified.
+gates:
+  G0: {status: approved, evidence: planning_conversation}
+  G1: {status: approved, evidence: planning_conversation}
+  G2: {status: authorized_pending_evidence, evidence: pending_local_review}
+  G3: {status: authorized_conditional, condition: G2_evidence_passed}
+  G4: {status: planned, evidence: not_executed}
+execution:
+  implementation_authorized_by_user: true
+  implementation_unlocked: false
+  automatic_gate_approval: false
+  automatic_commit: false

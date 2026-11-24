@@ -1,0 +1,3 @@
+# Error catalog
+
+400 INVALID_REQUEST; 401 UNAUTHENTICATED; 403 FORBIDDEN; 404 CALCULATION_NOT_FOUND; 409 IDEMPOTENCY_CONFLICT; 409 RULE_AMBIGUOUS; 422 RULE_NOT_FOUND; 503 STORAGE_UNAVAILABLE. Use RFC 9457 Problem Details and correlation ID. Replay unavailable should use a documented explicit error status/code.

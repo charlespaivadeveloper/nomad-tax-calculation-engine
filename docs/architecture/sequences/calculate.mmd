@@ -1,0 +1,20 @@
+sequenceDiagram
+ autonumber
+ participant ERP
+ participant Controller
+ participant Interactor
+ participant Gateway
+ participant Domain
+ participant DB
+ ERP->>Controller: POST /v1/tax-calculations
+ Controller->>Interactor: InputData
+ Interactor->>Gateway: reserve idempotency key
+ Gateway->>DB: transactional reservation
+ Interactor->>Gateway: resolve rule snapshot
+ Gateway-->>Interactor: versioned rule
+ Interactor->>Domain: calculate
+ Domain-->>Interactor: result
+ Interactor->>Gateway: persist result + outbox atomically
+ Gateway->>DB: COMMIT
+ Interactor-->>Controller: OutputData
+ Controller-->>ERP: 201 or replayed response

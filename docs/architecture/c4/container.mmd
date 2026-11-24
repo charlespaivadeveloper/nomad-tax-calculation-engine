@@ -1,0 +1,5 @@
+flowchart TB
+  ERP[ERP] --> API[Spring Boot application]
+  API --> DB[(PostgreSQL)]
+  API --> METRICS[Micrometer / Prometheus]
+  IDP[OIDC issuer / JWKS] -. token validation .-> API

@@ -1,0 +1,15 @@
+sequenceDiagram
+ participant Client
+ participant API
+ participant History
+ participant EngineRegistry
+ Client->>API: POST /v1/tax-calculations/{id}/replays
+ API->>History: load original input + rule snapshot + engine version
+ History-->>API: historical evidence
+ API->>EngineRegistry: execute matching version
+ alt engine available
+ EngineRegistry-->>API: recomputed result
+ API-->>Client: comparison + verification status
+ else version unavailable
+ API-->>Client: replay unavailable (no false success)
+ end
