@@ -2,11 +2,11 @@
 
 | Story | Deliverable | Hours | Spec | Status |
 |---|---|---:|---|---|
-| TAX-001 | Model domain and invariants | 6 | SPEC-TAX-001 | not_started |
+| TAX-001 | Model domain and invariants | 6 | SPEC-TAX-001 | done |
 | TAX-002 | Define OpenAPI contract | 5 | SPEC-TAX-004 | not_started |
-| TAX-003 | Design PostgreSQL and Flyway | 6 | SPEC-TAX-006 | not_started |
-| TAX-004 | Resolve versioned rules | 8 | SPEC-TAX-002 | not_started |
-| TAX-005 | Implement decimal calculation | 8 | SPEC-TAX-003 | not_started |
+| TAX-003 | Design PostgreSQL and Flyway | 6 | SPEC-TAX-006 | done |
+| TAX-004 | Resolve versioned rules | 8 | SPEC-TAX-002 | done |
+| TAX-005 | Implement decimal calculation | 8 | SPEC-TAX-003 | done |
 | TAX-006 | Build calculation/query API | 8 | SPEC-TAX-004 | not_started |
 | TAX-007 | Enforce idempotency | 6 | SPEC-TAX-005 | not_started |
 | TAX-008 | Persist evidence and outbox | 6 | SPEC-TAX-007 | not_started |

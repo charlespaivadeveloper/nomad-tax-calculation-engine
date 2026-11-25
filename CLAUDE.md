@@ -10,3 +10,5 @@ Read `AGENTS.md`, `docs/governance/gates.yaml`, `docs/bmad/prd.md`, `docs/archit
 6. Multi-tenant isolation, OAuth2 scopes, idempotency, audit outbox and deterministic replay are mandatory acceptance areas.
 7. No automatic gate approvals or commits. The user approved moving forward, but G2 technical evidence check must pass before implementation. Use `python3 scripts/check_gates.py --require-build` before any production code change; stop if it fails. Do not edit gate state just to bypass a failure.
 8. Keep docs and code consistent; report unexecuted checks explicitly.
+9. **No `for` loops in production code (`src/main/java/**`).** Always use the Java Streams API. See `docs/sdd/coding-conventions.md`.
+10. **No direct constructor calls for records/POJOs in production code.** Every record and class must carry `@Builder` (Lombok); all instantiation uses the generated builder. Exception: internal self-references within the same class. See `docs/sdd/coding-conventions.md`.

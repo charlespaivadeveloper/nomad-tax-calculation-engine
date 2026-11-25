@@ -391,7 +391,7 @@ Each test must run against a real PostgreSQL instance (Testcontainers) with Flyw
 | IT-RR-001 | Insert two PUBLISHED snapshots (CBS + IBS) for the same classification and date; call gateway | Returns exactly 2 snapshots; both cover the query date per §4 semantics |
 | IT-RR-002 | Insert PUBLISHED snapshots for tenant T1 and T2; call gateway with T1 | Only T1 snapshots returned; T2 never visible |
 | IT-RR-003 | Insert two overlapping PUBLISHED CBS snapshots; call interactor | `RULE_AMBIGUOUS` returned; no calculation proceeds |
-| IT-RR-004 | Shut down the DB container; call gateway | `RuleGatewayUnavailableException` thrown; interactor returns `DEPENDENCY_UNAVAILABLE` |
+| IT-RR-004 | Mock `TaxRuleJpaRepository` to throw `DataAccessResourceFailureException`; call `TaxRuleJpaGateway.findPublished()` | `DataAccessException` is caught by the gateway and wrapped as `RuleGatewayUnavailableException`; interactor returns `DEPENDENCY_UNAVAILABLE` |
 | IT-RR-005 | Insert open-ended snapshot (`valid_to = NULL`); call gateway with date far in future | Snapshot returned correctly |
 | IT-RR-006 | Retrieve stored snapshot; compute hash per §5; compare to `snapshotHash` column | Computed hash matches stored value exactly (64 lowercase hex chars) |
 | IT-RR-007 | 50 concurrent threads call gateway with identical inputs against same DB rows | All threads receive identical snapshots; no deadlock; no data corruption |
@@ -406,13 +406,13 @@ Each test must run against a real PostgreSQL instance (Testcontainers) with Flyw
 | `RuleResolutionRequest` | Module `tax-usecases`, package `tax.usecases.gateway` |
 | `RuleGatewayUnavailableException` | Module `tax-usecases`; not a `RuntimeException` subtype |
 | `TaxRuleSnapshot` | Module `tax-domain` (defined in SPEC-TAX-001 §2.4) |
-| Gateway implementation | Module `tax-frameworks` (JPA/JDBC adapter); must not leak persistence types across the boundary |
+| Gateway implementation | Module `tax-frameworks`, package `tax.frameworks.persistence`. Spring Data JPA adapter: `TaxRuleJpaGateway implements TaxRuleGateway`; `TaxRuleJpaRepository extends JpaRepository<TaxRuleEntity, UUID>` with JPQL half-open interval query (`validFrom <= :operationDate AND (validTo IS NULL OR validTo > :operationDate)`); `TaxRuleEntity` maps the `tax_rule` table with `@Enumerated(EnumType.STRING)` for `TaxType` and `RuleStatus`. `DataAccessException` is caught and re-thrown as `RuleGatewayUnavailableException`. No JPA or Spring types cross into `tax-usecases` or `tax-domain`. |
 | Interactor | Module `tax-usecases`; calls `TaxRuleGateway` and delegates arithmetic to `TaxCalculationService` |
 | Forbidden imports in `tax-usecases` | `org.springframework.*`, `jakarta.persistence.*`, `com.fasterxml.jackson.*`, any HTTP package |
 | ArchUnit rule | `noClasses().that().resideInAPackage("tax.usecases..").should().dependOnClassesThat().resideInAPackage("tax.frameworks..")` |
 | Snapshot hash computation | Pure Java (`MessageDigest`, `TreeMap`, string concatenation); no JSON library in `tax-domain` |
 
-Test class to be created in `tax-usecases` test sources: `RuleResolutionServiceTest` (JUnit 5 unit tests for the interactor algorithm, with a mock gateway). Integration tests in `tax-frameworks` test sources: `TaxRuleGatewayIntegrationTest` (Testcontainers).
+Test class to be created in `tax-usecases` test sources: `RuleResolutionServiceTest` (JUnit 5 unit tests for the interactor algorithm, with a mock gateway). Integration tests in `tax-frameworks` test sources: `TaxRuleGatewayIntegrationTest` using `@DataJpaTest`, `@AutoConfigureTestDatabase(replace = NONE)`, `@Testcontainers`, `@DynamicPropertySource`, and `@Transactional(propagation = NOT_SUPPORTED)`. IT-RR-004 uses a Mockito mock of `TaxRuleJpaRepository` throwing `DataAccessResourceFailureException` to verify the exception-wrapping contract without requiring a failing DataSource.
 
 ---
 

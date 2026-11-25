@@ -584,6 +584,8 @@ All integration tests must run against a real HTTP server (Spring Boot test slic
 | Decimal serialisation | Serialiser must call `BigDecimal.toPlainString()`; `ObjectMapper` must not register `NumberModule` or `StdDeserializer<Number>` for domain numeric fields |
 | ArchUnit rule | `noClasses().that().resideInAPackage("tax.adapters.web..").should().dependOnClassesThat().resideInAPackage("tax.frameworks..")` |
 | OpenAPI artifact | `specs/openapi/tax-calculation-v1.yaml` is the normative machine-readable contract; it must stay in sync with this spec; divergence is a G2/G3 defect |
+| Swagger UI — YAML only | Swagger UI must be served exclusively from `specs/openapi/tax-calculation-v1.yaml`. No Spring `@Operation`, `@ApiResponse`, or `@Schema` annotations may be used in production code — the YAML is the single source of truth. Annotation-based generation is prohibited to prevent the YAML and annotations diverging silently. |
+| Postman collection | `postman/nomad-tax-engine.postman_collection.json` and `postman/local.postman_environment.json` must be maintained alongside this spec. Each request is linked to a scenario ID (see `test-strategy.md §7`). Newman runs `postman/nomad-tax-engine.postman_collection.json` as a CI step. |
 
 Test class to be created in `tax-interface-adapters` / `tax-frameworks` test sources:
 - `CalculationControllerTest` — MockMvc unit tests for mapping, header extraction, error codes
